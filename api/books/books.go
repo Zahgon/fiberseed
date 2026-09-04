@@ -1,11 +1,13 @@
 package books
 
 import (
+	"encoding/json"
 	"errors"
 	"fiberseed/database"
 	"fiberseed/pkg"
+	"net/http"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
@@ -16,15 +18,15 @@ type Book struct {
 	Rating int    `json:"rating"`
 }
 
-func GetBooks(c *fiber.Ctx) error {
+func GetBooks(w http.ResponseWriter, r *http.Request) error {
 	db := database.DB
 	var books []Book
 	db.Find(&books)
-	return c.JSON(books)
+	return pkg.JSON(w, http.StatusOK, books)
 }
 
-func GetBook(c *fiber.Ctx) error {
-	id := c.Params("id")
+func GetBook(w http.ResponseWriter, r *http.Request) error {
+	id := chi.URLParam(r, "id")
 	db := database.DB
 	var book Book
 	err := db.First(&book, id).Error
@@ -35,21 +37,21 @@ func GetBook(c *fiber.Ctx) error {
 		return pkg.Unexpected(err.Error())
 	}
 
-	return c.JSON(book)
+	return pkg.JSON(w, http.StatusOK, book)
 }
 
-func NewBook(c *fiber.Ctx) error {
+func NewBook(w http.ResponseWriter, r *http.Request) error {
 	db := database.DB
 	book := new(Book)
-	if err := c.BodyParser(book); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(book); err != nil {
 		return pkg.BadRequest("Invalid params")
 	}
 	db.Create(&book)
-	return c.JSON(book)
+	return pkg.JSON(w, http.StatusOK, book)
 }
 
-func UpdateBook(c *fiber.Ctx) error {
-	id := c.Params("id")
+func UpdateBook(w http.ResponseWriter, r *http.Request) error {
+	id := chi.URLParam(r, "id")
 	db := database.DB
 	var book Book
 	err := db.First(&book, id).Error
@@ -62,7 +64,7 @@ func UpdateBook(c *fiber.Ctx) error {
 
 	updatedBook := new(Book)
 
-	if err := c.BodyParser(updatedBook); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(updatedBook); err != nil {
 		return pkg.BadRequest("Invalid params")
 	}
 
@@ -72,11 +74,11 @@ func UpdateBook(c *fiber.Ctx) error {
 		return pkg.Unexpected(err.Error())
 	}
 
-	return c.SendStatus(204)
+	return pkg.Status(w, http.StatusNoContent)
 }
 
-func DeleteBook(c *fiber.Ctx) error {
-	id := c.Params("id")
+func DeleteBook(w http.ResponseWriter, r *http.Request) error {
+	id := chi.URLParam(r, "id")
 	db := database.DB
 
 	var book Book
@@ -89,5 +91,5 @@ func DeleteBook(c *fiber.Ctx) error {
 	}
 
 	db.Delete(&book)
-	return c.SendStatus(204)
+	return pkg.Status(w, http.StatusNoContent)
 }

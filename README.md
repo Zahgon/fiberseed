@@ -1,6 +1,6 @@
 # FiberSeed
 
-REST API Fiber boilerplate
+REST API Chi boilerplate
 
 ## ⭐️ Features
 
@@ -11,7 +11,7 @@ REST API Fiber boilerplate
   - CORS
   - ETag
   - recover
-  - helmet
+  - secure headers
   - logger (optional)
   - limiter (optional)
 - Environment config with .env

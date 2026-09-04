@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -15,11 +16,17 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 )
 
-var app *fiber.App
+var app *chi.Mux
+
+func testRequest(req *http.Request) (*http.Response, error) {
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	return rec.Result(), nil
+}
 
 func TestMain(m *testing.M) {
 	err := godotenv.Load("../../.env")
@@ -44,7 +51,7 @@ func TestMain(m *testing.M) {
 
 func TestGetBooks(t *testing.T) {
 	req := httptest.NewRequest("GET", "/books", nil)
-	resp, _ := app.Test(req)
+	resp, _ := testRequest(req)
 	body, _ := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, 200, resp.StatusCode, "status ok")
 	assert.Equal(t, string(body), "[]", "empty body")
@@ -53,7 +60,7 @@ func TestGetBooks(t *testing.T) {
 	database.DB.Create(book)
 
 	req = httptest.NewRequest("GET", "/books", nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	body, _ = ioutil.ReadAll(resp.Body)
 
 	var books []Book
@@ -68,18 +75,18 @@ func TestGetBooks(t *testing.T) {
 
 func TestGetBook(t *testing.T) {
 	req := httptest.NewRequest("GET", "/books/1", nil)
-	resp, _ := app.Test(req)
+	resp, _ := testRequest(req)
 	assert.Equal(t, 404, resp.StatusCode, "status ok")
 
 	req = httptest.NewRequest("GET", "/books/foo", nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	assert.Equal(t, 500, resp.StatusCode, "status ok")
 
 	newBook := &Book{Title: "The Wise Man's Fear", Author: "Patrick Rothfuss", Rating: 10}
 	database.DB.Create(newBook)
 
 	req = httptest.NewRequest("GET", fmt.Sprintf("/books/%d", newBook.ID), nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	var book Book
@@ -101,7 +108,7 @@ func TestNewBook(t *testing.T) {
 	body, _ := json.Marshal(newBook)
 	req := httptest.NewRequest("POST", "/books", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	resp, _ := app.Test(req)
+	resp, _ := testRequest(req)
 	body, _ = ioutil.ReadAll(resp.Body)
 	assert.Equal(t, 200, resp.StatusCode, "status ok")
 
@@ -127,11 +134,11 @@ func TestUpdateBook(t *testing.T) {
 	})
 	req := httptest.NewRequest("PUT", fmt.Sprintf("/books/%d", book.ID), bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	resp, _ := app.Test(req)
+	resp, _ := testRequest(req)
 	assert.Equal(t, 204, resp.StatusCode, "status ok")
 
 	req = httptest.NewRequest("GET", fmt.Sprintf("/books/%d", book.ID), nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	body, _ = ioutil.ReadAll(resp.Body)
 
 	var updatedBook Book
@@ -146,17 +153,17 @@ func TestUpdateBook(t *testing.T) {
 
 func TestDeleteBook(t *testing.T) {
 	req := httptest.NewRequest("GET", "/books/0", nil)
-	resp, _ := app.Test(req)
+	resp, _ := testRequest(req)
 	assert.Equal(t, 404, resp.StatusCode, "status ok")
 
 	req = httptest.NewRequest("GET", "/books/foo", nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	assert.Equal(t, 500, resp.StatusCode, "status ok")
 
 	newBook := &Book{Title: "The Wise Man's Fear", Author: "Patrick Rothfuss", Rating: 10}
 	database.DB.Create(newBook)
 
 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/books/%d", newBook.ID), nil)
-	resp, _ = app.Test(req)
+	resp, _ = testRequest(req)
 	assert.Equal(t, 204, resp.StatusCode, "status ok")
 }
